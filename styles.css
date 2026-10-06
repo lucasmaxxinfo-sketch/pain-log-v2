@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#10233b" />
+    <meta name="description" content="Pain Log V2 — a local-first pain diary and medication tracker for personal use and healthcare conversations." />
+    <title>Pain Log V2</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Private pain diary</p>
+          <h1>Pain Log V2</h1>
+        </div>
+        <div class="status-pill" id="saveStatus">Saved locally</div>
+      </header>
+
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-btn active" data-tab="today" type="button">Today</button>
+        <button class="nav-btn" data-tab="diary" type="button">Diary</button>
+        <button class="nav-btn" data-tab="reports" type="button">Reports</button>
+        <button class="nav-btn" data-tab="privacy" type="button">Privacy</button>
+        <button class="nav-btn" data-tab="terms" type="button">Terms</button>
+      </nav>
+
+      <main>
+        <section class="tab-panel active" id="tab-today">
+          <div class="card quick-actions">
+            <div class="section-header">
+              <h2>Quick log</h2>
+              <span id="todayLabel" class="label-inline"></span>
+            </div>
+            <div class="quick-grid">
+              <button class="primary-action" type="button" data-quick="pain">Log pain</button>
+              <button class="secondary-action" type="button" data-quick="medication">Log medication</button>
+              <button class="secondary-action" type="button" data-quick="note">Add note</button>
+              <button class="secondary-action" type="button" data-quick="voice">Voice note</button>
+            </div>
+          </div>
+
+          <div class="card panel-form hidden" id="painFormCard">
+            <div class="section-header compact">
+              <h3>Pain entry</h3>
+              <button class="inline-close" type="button" data-close-panel="painFormCard">Close</button>
+            </div>
+            <label class="input-label" for="painLevel">Pain level</label>
+            <div class="pain-scale-row">
+              <input id="painLevel" name="painLevel" type="range" min="0" max="10" step="1" value="5" />
+              <div class="pain-value-pill"><span id="painLevelValue">5</span>/10</div>
+            </div>
+            <div class="field-grid two-up">
+              <div>
+                <label class="input-label" for="painLocation">Body location</label>
+                <input id="painLocation" type="text" maxlength="200" placeholder="e.g. left hip" />
+              </div>
+              <div>
+                <label class="input-label" for="painSymptoms">Symptoms</label>
+                <input id="painSymptoms" type="text" maxlength="200" placeholder="e.g. stiffness, burning" />
+              </div>
+            </div>
+            <div class="field-grid two-up">
+              <div>
+                <label class="input-label" for="painTrigger">Trigger</label>
+                <input id="painTrigger" type="text" maxlength="200" placeholder="e.g. standing, walking" />
+              </div>
+              <div>
+                <label class="input-label" for="painNote">Optional note</label>
+                <input id="painNote" type="text" maxlength="1000" placeholder="What was happening?" />
+              </div>
+            </div>
+            <button class="primary-action full-width" id="savePainBtn" type="button">Save pain entry</button>
+          </div>
+
+          <div class="card panel-form hidden" id="medicationFormCard">
+            <div class="section-header compact">
+              <h3>Medication entry</h3>
+              <button class="inline-close" type="button" data-close-panel="medicationFormCard">Close</button>
+            </div>
+            <div class="field-grid two-up">
+              <div>
+                <label class="input-label" for="medicationName">Medication name</label>
+                <input id="medicationName" type="text" maxlength="200" placeholder="e.g. ibuprofen" />
+              </div>
+              <div>
+                <label class="input-label" for="medicationDose">Dose</label>
+                <input id="medicationDose" type="text" maxlength="80" placeholder="e.g. 400" />
+              </div>
+            </div>
+            <div class="field-grid two-up">
+              <div>
+                <label class="input-label" for="medicationUnit">Unit</label>
+                <input id="medicationUnit" type="text" maxlength="50" placeholder="mg, tablet, ml" />
+              </div>
+              <div>
+                <label class="input-label" for="medicationNote">Optional note</label>
+                <input id="medicationNote" type="text" maxlength="1000" placeholder="When did you take it?" />
+              </div>
+            </div>
+            <button class="primary-action full-width" id="saveMedicationBtn" type="button">Save medication</button>
+          </div>
+
+          <div class="card panel-form hidden" id="noteFormCard">
+            <div class="section-header compact">
+              <h3>Diary note</h3>
+              <button class="inline-close" type="button" data-close-panel="noteFormCard">Close</button>
+            </div>
+            <label class="input-label" for="noteText">Note</label>
+            <textarea id="noteText" rows="4" maxlength="5000" placeholder="Describe what happened, symptoms, or what changed."></textarea>
+            <button class="primary-action full-width" id="saveNoteBtn" type="button">Save note</button>
+          </div>
+
+          <div class="card panel-form hidden" id="voiceFormCard">
+            <div class="section-header compact">
+              <h3>Voice</h3>
+              <button class="inline-close" type="button" data-close-panel="voiceFormCard">Close</button>
+            </div>
+            <div class="voice-actions">
+              <button class="primary-action" id="speechToTextBtn" type="button">Use speech-to-text</button>
+              <button class="secondary-action" id="recordVoiceBtn" type="button">Record audio</button>
+            </div>
+            <label class="input-label" for="voiceNoteText">Optional note</label>
+            <textarea id="voiceNoteText" rows="3" maxlength="5000" placeholder="Add context before saving your voice note."></textarea>
+            <div class="recording-status" id="recordingStatus">No recording in progress.</div>
+          </div>
+
+          <div class="card">
+            <div class="section-header compact">
+              <h2>Today's timeline</h2>
+              <button class="ghost-button" type="button" id="clearTodayBtn">Clear today</button>
+            </div>
+            <div id="todayTimeline" class="timeline"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-diary">
+          <div class="card">
+            <div class="section-header">
+              <h2>Diary</h2>
+              <div class="date-filter-wrap">
+                <label class="input-label" for="diaryDateFilter">Date</label>
+                <input id="diaryDateFilter" type="date" />
+              </div>
+            </div>
+            <div id="diaryEntries" class="timeline diary"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-reports">
+          <div class="card report-summary">
+            <div class="section-header">
+              <h2>Reports</h2>
+              <div class="range-controls">
+                <input id="reportStart" type="date" />
+                <input id="reportEnd" type="date" />
+              </div>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-box">
+                <span class="stat-label">Pain entries</span>
+                <strong id="statPainCount">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Average pain</span>
+                <strong id="statAveragePain">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Highest pain</span>
+                <strong id="statHighestPain">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Lowest pain</span>
+                <strong id="statLowestPain">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Medication events</span>
+                <strong id="statMedicationCount">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Note entries</span>
+                <strong id="statNoteCount">0</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="section-header compact">
+              <h3>Daily summary</h3>
+              <div class="export-buttons">
+                <button class="secondary-action" id="exportJsonBtn" type="button">Export JSON</button>
+                <button class="secondary-action" id="exportTextBtn" type="button">Export text</button>
+                <button class="secondary-action" id="exportPdfBtn" type="button">Print PDF</button>
+              </div>
+            </div>
+            <div id="reportDailySummary" class="report-list"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-privacy">
+          <div class="card">
+            <h2>Privacy</h2>
+            <div class="content-block">
+              <p><strong>What data is stored:</strong> Pain level, medication name, dose, date and time, optional notes, symptoms, body location, trigger, and optional voice recordings saved only on this device.</p>
+              <p><strong>Where it is stored:</strong> In the browser's local storage on the device you use. This is not healthcare-grade encrypted storage. If the browser or device is reset, stored data may be lost.</p>
+              <p><strong>Whether anything is transmitted:</strong> By default, this app does not send diary data to a cloud service or third-party analytics provider. Audio recording and speech recognition happen in the browser on your device only unless you export your data manually.</p>
+              <p><strong>How exports work:</strong> You can export a JSON backup or a text report. The export is generated on your device and saved to your download folder or printed to a PDF through the browser.</p>
+              <p><strong>How you can delete data:</strong> Use the “Clear today” action or the full delete option in the app. You can also delete all data by using the main “Delete all data” button.</p>
+              <p><strong>Microphone and speech permissions:</strong> If you use voice recording or speech-to-text, the browser asks for microphone permission. Permission is required to use those features. No recordings are uploaded anywhere without your explicit action and no cloud sync is enabled by default.</p>
+              <p><strong>Third-party services:</strong> No external analytics or tracking services are required for core operation. If a future cloud feature is added, it must be opt-in and clearly disclosed before use.</p>
+              <p><strong>Limitations:</strong> Browser local storage is convenient and useful for personal tracking, but it is not equivalent to healthcare-grade encrypted storage. Keep your device secure and keep backups in a safe place.</p>
+              <button class="secondary-action full-width" id="importJsonBtn" type="button">Import JSON backup</button>
+              <input id="importFileInput" type="file" accept="application/json,.json" class="hidden-file-input" />
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-terms">
+          <div class="card">
+            <h2>Terms and conditions</h2>
+            <div class="content-block">
+              <p><strong>Purpose:</strong> Pain Log V2 is a personal diary tool for recording pain levels, medications, notes, and voice entries for personal reference and health-related discussion.</p>
+              <p><strong>User responsibility:</strong> You are responsible for the accuracy and suitability of the information you enter. This application does not replace professional medical advice.</p>
+              <p><strong>Medical disclaimer:</strong> This app is not intended to diagnose, treat, cure, or prevent any disease or medical condition. It does not provide medical advice, diagnosis, or emergency services.</p>
+              <p><strong>No emergency service:</strong> If you are in a medical emergency, contact emergency services or your local medical provider immediately.</p>
+              <p><strong>Medication information:</strong> Medication entries are user-entered records only. The app does not prescribe medication or provide dosing recommendations.</p>
+              <p><strong>Data and storage limitations:</strong> Data is stored in the browser on the device in use. Storage may be limited, and browser or device events can cause data loss. Keep regular backups as needed.</p>
+              <p><strong>Export responsibility:</strong> You are responsible for how you store, share, or transmit exported files. Do not share personal health information unless you choose to do so.</p>
+              <p><strong>Third-party service limitations:</strong> This app does not depend on third-party trackers or cloud storage by default. Any later feature that transmits data externally must be clearly disclosed.</p>
+              <p><strong>Availability:</strong> The app may be unavailable during updates, browser changes, or device issues. Features may vary across browsers and operating systems.</p>
+              <p><strong>Ownership:</strong> Pain Log V2 and associated project materials are the property of the project owner, subject to applicable intellectual-property law. The owner may later replace this notice with formal legal and trademark information.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer-bar">
+        <button class="danger-button" id="deleteAllBtn" type="button">Delete all data</button>
+      </footer>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
