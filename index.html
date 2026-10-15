@@ -1,39 +1,248 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#10131a"><title>Pain Log</title>
-<style>
-:root{--bg:#0d1016;--card:#171b24;--line:#2a3040;--text:#f4f6fa;--muted:#9da6b7;--accent:#8b7cff;--danger:#ff5c70;--ok:#4bd39b}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}main{max-width:680px;margin:auto;padding:18px 16px 40px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.title{font-size:25px;font-weight:800}.sub{color:var(--muted);font-size:13px}.status{font-size:12px;color:var(--ok)}button{font:inherit;color:var(--text);border:0;cursor:pointer}.hero{background:linear-gradient(145deg,#1c2030,#141821);border:1px solid var(--line);border-radius:24px;padding:18px;margin-bottom:14px}.painrow{display:flex;gap:10px;align-items:center}.paininput{width:120px;background:#0c0f15;border:1px solid var(--line);color:white;border-radius:16px;font-size:38px;font-weight:800;text-align:center;padding:8px}.logpain{flex:1;min-height:76px;border-radius:18px;background:var(--danger);font-size:22px;font-weight:800}.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.quick button{background:#222838;border:1px solid #333b4d;border-radius:13px;padding:11px 4px;font-weight:700}.section{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px;margin-top:12px}.section h2{font-size:15px;margin:0 0 10px}.meds{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.med{background:#242a39;border:1px solid #343c50;border-radius:15px;padding:14px;text-align:left;min-height:66px}.med strong{display:block;font-size:16px}.med span{display:block;color:var(--muted);font-size:12px;margin-top:2px}.voice{display:flex;gap:9px}.voice button{flex:1;border-radius:15px;background:#282f40;padding:15px;font-weight:750}.voice button.recording{background:var(--danger)}textarea{width:100%;background:#0e1118;color:white;border:1px solid var(--line);border-radius:14px;padding:12px;min-height:80px;resize:vertical}.actions{display:flex;gap:9px;margin-top:10px}.actions button{flex:1;background:#242a39;border-radius:14px;padding:12px}.history{display:flex;flex-direction:column;gap:8px}.event{border:1px solid var(--line);border-radius:15px;padding:12px;background:#131720}.eventtop{display:flex;justify-content:space-between;gap:10px}.event b{font-size:15px}.event small{color:var(--muted)}.pill{display:inline-block;margin-top:7px;margin-right:5px;padding:4px 8px;border-radius:9px;background:#252c3c;font-size:12px}.empty{color:var(--muted);text-align:center;padding:16px}.danger{color:#ff9aa7}.footer{display:flex;gap:8px;margin-top:12px}.footer button{background:transparent;color:var(--muted);padding:8px}.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#f4f6fa;color:#111;padding:11px 16px;border-radius:13px;font-weight:700;display:none;z-index:5}@media(max-width:430px){.paininput{width:94px}.quick{grid-template-columns:repeat(4,1fr)}.meds{grid-template-columns:1fr 1fr}}
-</style></head>
-<body><main>
-<div class="top"><div><div class="title">Pain Log</div><div class="sub">Tap what happened. No typing required.</div></div><div class="status" id="saveState">Saved locally</div></div>
-<section class="hero"><div class="painrow"><input id="pain" class="paininput" inputmode="numeric" type="number" min="0" max="100" value="10" aria-label="Pain level"><button class="logpain" id="logPain">LOG PAIN</button></div><div class="quick"><button data-pain="5">5</button><button data-pain="7">7</button><button data-pain="10">10</button><button data-pain="30">30+</button></div></section>
-<section class="section"><h2>Medication taken</h2><div class="meds" id="meds"></div></section>
-<section class="section"><h2>Voice / episode evidence</h2><div class="voice"><button id="voiceBtn">🎙️ Hold to record voice</button><button id="speechBtn">🗣️ Start speech note</button></div><div style="margin-top:9px"><textarea id="note" placeholder="Optional note. You can leave this blank."></textarea></div><div class="actions"><button id="saveNote">Save note</button><button id="clearToday">Clear today's data</button></div></section>
-<section class="section"><h2>Today</h2><div id="history" class="history"></div></section>
-<div class="footer"><button id="export">Export diary</button><button id="deleteAll">Delete all local data</button></div>
-</main><div class="toast" id="toast"></div>
-<script>
-const KEY='painlog.v1';
-const meds=[['Pregabalin','1 dose'],['Ibuprofen','1 dose'],['Norflex','1 dose'],['Codeine','1 dose'],['Other','1 dose']];
-let data=JSON.parse(localStorage.getItem(KEY)||'[]'); let mediaRecorder=null, chunks=[], recognition=null;
-const $=id=>document.getElementById(id);
-function now(){return new Date().toISOString()}
-function fmt(iso){return new Date(iso).toLocaleString([], {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
-function save(){localStorage.setItem(KEY,JSON.stringify(data));$('saveState').textContent='Saved locally'}
-function toast(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',1800)}
-function add(type,extra={}){data.push({id:crypto.randomUUID(),time:now(),type,...extra});save();render();toast(type==='pain'?'Pain logged':'Logged')}
-function render(){const h=$('history'); if(!data.length){h.innerHTML='<div class="empty">Nothing logged yet.</div>';return}h.innerHTML=data.slice().reverse().map(e=>{let label=e.type==='pain'?`Pain ${e.level}`:e.type==='med'?`${e.med} dose`:e.type==='voice'?'Voice recording':e.type==='note'?'Note':'Event';return `<div class="event"><div class="eventtop"><b>${label}</b><small>${fmt(e.time)}</small></div>${e.text?`<div style="margin-top:7px;white-space:pre-wrap">${escapeHtml(e.text)}</div>`:''}${e.level?`<span class="pill">Pain level ${e.level}</span>`:''}${e.count?`<span class="pill">Dose #${e.count}</span>`:''}${e.duration?`<span class="pill">${e.duration}s audio</span>`:''}</div>`}).join('')}
-function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
-$('logPain').onclick=()=>{let n=Math.max(0,Number($('pain').value||0));add('pain',{level:n})};document.querySelectorAll('[data-pain]').forEach(b=>b.onclick=()=>{$('pain').value=b.dataset.pain;add('pain',{level:Number(b.dataset.pain)})});
-$('meds').innerHTML=meds.map((m,i)=>`<button class="med" data-med="${m[0]}"><strong>${m[0]}</strong><span>Tap once per dose</span></button>`).join('');
-document.querySelectorAll('.med').forEach(b=>b.onclick=()=>{const med=b.dataset.med;const count=data.filter(e=>e.type==='med'&&e.med===med&&new Date(e.time).toDateString()===new Date().toDateString()).length+1;add('med',{med,count})});
-$('saveNote').onclick=()=>{const t=$('note').value.trim();if(t){add('note',{text:t});$('note').value=''}};
-$('speechBtn').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('Speech-to-text is not available in this browser');return}if(recognition){recognition.stop();return}recognition=new SR();recognition.continuous=true;recognition.interimResults=false;recognition.lang='en-NZ';recognition.onstart=()=>{$('speechBtn').textContent='⏹️ Stop speech note'};recognition.onresult=e=>{let s='';for(let i=e.resultIndex;i<e.results.length;i++)s+=e.results[i][0].transcript+' ';$('note').value+=s};recognition.onend=()=>{$('speechBtn').textContent='🗣️ Start speech note';recognition=null};recognition.start()};
-$('voiceBtn').onclick=async()=>{if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop();return}if(!navigator.mediaDevices?.getUserMedia){toast('Audio recording is not available here');return}try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});chunks=[];mediaRecorder=new MediaRecorder(stream);const started=Date.now();mediaRecorder.ondataavailable=e=>e.data.size&&chunks.push(e.data);mediaRecorder.onstop=()=>{stream.getTracks().forEach(t=>t.stop());const duration=Math.round((Date.now()-started)/1000);add('voice',{duration});$('voiceBtn').textContent='🎙️ Hold to record voice'};mediaRecorder.start();$('voiceBtn').textContent='⏹️ Stop recording';}catch(e){toast('Microphone permission was not granted')}};
-$('clearToday').onclick=()=>{if(confirm('Delete only today\'s entries?')){const d=new Date().toDateString();data=data.filter(e=>new Date(e.time).toDateString()!==d);save();render()}};
-$('deleteAll').onclick=()=>{if(confirm('Delete every saved diary entry from this device?')){data=[];save();render()}};
-$('export').onclick=()=>{const text=data.map(e=>`${new Date(e.time).toLocaleString()} | ${e.type==='pain'?'Pain '+e.level:e.type==='med'?e.med+' dose #'+e.count:e.type==='voice'?'Voice recording '+e.duration+'s':'Note: '+(e.text||'')}`).join('\n');const blob=new Blob([text||'No entries'],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pain-diary.txt';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
-render();
-</script></body></html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#10233b" />
+    <meta name="description" content="Pain Log V2 — a local-first pain diary and medication tracker for personal use and healthcare conversations." />
+    <title>Pain Log V2</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Private pain diary</p>
+          <h1>Pain Log V2</h1>
+        </div>
+        <div class="status-pill" id="saveStatus">Saved locally</div>
+      </header>
+
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-btn active" data-tab="today" type="button">Today</button>
+        <button class="nav-btn" data-tab="diary" type="button">Diary</button>
+        <button class="nav-btn" data-tab="reports" type="button">Reports</button>
+        <button class="nav-btn" data-tab="privacy" type="button">Privacy</button>
+        <button class="nav-btn" data-tab="terms" type="button">Terms</button>
+      </nav>
+
+      <main>
+        <section class="tab-panel active" id="tab-today">
+          <div class="card quick-actions">
+            <div class="section-header">
+              <h2>Quick log</h2>
+              <span id="todayLabel" class="label-inline"></span>
+            </div>
+            <div class="quick-grid">
+              <button class="primary-action" type="button" data-quick="pain">Log pain</button>
+              <button class="secondary-action" type="button" data-quick="medication">Log medication</button>
+              <button class="secondary-action" type="button" data-quick="note">Add note</button>
+              <button class="secondary-action" type="button" data-quick="voice">Voice note</button>
+            </div>
+          </div>
+
+          <div class="card panel-form hidden" id="painFormCard">
+            <div class="section-header compact">
+              <h3>Pain entry</h3>
+              <button class="inline-close" type="button" data-close-panel="painFormCard">Close</button>
+            </div>
+            <label class="input-label" for="painLevel">Pain level</label>
+            <div class="pain-scale-row">
+              <input id="painLevel" name="painLevel" type="range" min="0" max="10" step="1" value="5" />
+              <div class="pain-value-pill"><span id="painLevelValue">5</span>/10</div>
+            </div>
+            <div class="field-grid two-up">
+              <div>
+                <label class="input-label" for="painLocation">Body location</label>
+                <input id="painLocation" type="text" maxlength="200" placeholder="e.g. left hip" />
+              </div>
+              <div>
+                <label class="input-label" for="painSymptoms">Symptoms</label>
+                <input id="painSymptoms" type="text" maxlength="200" placeholder="e.g. stiffness, burning" />
+              </div>
+            </div>
+            <div class="field-grid two-up">
+              <div>
+                <label class="input-label" for="painTrigger">Trigger</label>
+                <input id="painTrigger" type="text" maxlength="200" placeholder="e.g. standing, walking" />
+              </div>
+              <div>
+                <label class="input-label" for="painNote">Optional note</label>
+                <input id="painNote" type="text" maxlength="1000" placeholder="What was happening?" />
+              </div>
+            </div>
+            <button class="primary-action full-width" id="savePainBtn" type="button">Save pain entry</button>
+          </div>
+
+          <div class="card panel-form hidden" id="medicationFormCard">
+            <div class="section-header compact">
+              <h3>Medication entry</h3>
+              <button class="inline-close" type="button" data-close-panel="medicationFormCard">Close</button>
+            </div>
+            <div class="field-grid two-up">
+              <div>
+                <label class="input-label" for="medicationName">Medication name</label>
+                <input id="medicationName" type="text" maxlength="200" placeholder="e.g. ibuprofen" />
+              </div>
+              <div>
+                <label class="input-label" for="medicationDose">Dose</label>
+                <input id="medicationDose" type="text" maxlength="80" placeholder="e.g. 400" />
+              </div>
+            </div>
+            <div class="field-grid two-up">
+              <div>
+                <label class="input-label" for="medicationUnit">Unit</label>
+                <input id="medicationUnit" type="text" maxlength="50" placeholder="mg, tablet, ml" />
+              </div>
+              <div>
+                <label class="input-label" for="medicationNote">Optional note</label>
+                <input id="medicationNote" type="text" maxlength="1000" placeholder="When did you take it?" />
+              </div>
+            </div>
+            <button class="primary-action full-width" id="saveMedicationBtn" type="button">Save medication</button>
+          </div>
+
+          <div class="card panel-form hidden" id="noteFormCard">
+            <div class="section-header compact">
+              <h3>Diary note</h3>
+              <button class="inline-close" type="button" data-close-panel="noteFormCard">Close</button>
+            </div>
+            <label class="input-label" for="noteText">Note</label>
+            <textarea id="noteText" rows="4" maxlength="5000" placeholder="Describe what happened, symptoms, or what changed."></textarea>
+            <button class="primary-action full-width" id="saveNoteBtn" type="button">Save note</button>
+          </div>
+
+          <div class="card panel-form hidden" id="voiceFormCard">
+            <div class="section-header compact">
+              <h3>Voice</h3>
+              <button class="inline-close" type="button" data-close-panel="voiceFormCard">Close</button>
+            </div>
+            <div class="voice-actions">
+              <button class="primary-action" id="speechToTextBtn" type="button">Use speech-to-text</button>
+              <button class="secondary-action" id="recordVoiceBtn" type="button">Record audio</button>
+            </div>
+            <label class="input-label" for="voiceNoteText">Optional note</label>
+            <textarea id="voiceNoteText" rows="3" maxlength="5000" placeholder="Add context before saving your voice note."></textarea>
+            <div class="recording-status" id="recordingStatus">No recording in progress.</div>
+          </div>
+
+          <div class="card">
+            <div class="section-header compact">
+              <h2>Today's timeline</h2>
+              <button class="ghost-button" type="button" id="clearTodayBtn">Clear today</button>
+            </div>
+            <div id="todayTimeline" class="timeline"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-diary">
+          <div class="card">
+            <div class="section-header">
+              <h2>Diary</h2>
+              <div class="date-filter-wrap">
+                <label class="input-label" for="diaryDateFilter">Date</label>
+                <input id="diaryDateFilter" type="date" />
+              </div>
+            </div>
+            <div id="diaryEntries" class="timeline diary"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-reports">
+          <div class="card report-summary">
+            <div class="section-header">
+              <h2>Reports</h2>
+              <div class="range-controls">
+                <input id="reportStart" type="date" />
+                <input id="reportEnd" type="date" />
+              </div>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-box">
+                <span class="stat-label">Pain entries</span>
+                <strong id="statPainCount">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Average pain</span>
+                <strong id="statAveragePain">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Highest pain</span>
+                <strong id="statHighestPain">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Lowest pain</span>
+                <strong id="statLowestPain">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Medication events</span>
+                <strong id="statMedicationCount">0</strong>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Note entries</span>
+                <strong id="statNoteCount">0</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="section-header compact">
+              <h3>Daily summary</h3>
+              <div class="export-buttons">
+                <button class="secondary-action" id="exportJsonBtn" type="button">Export JSON</button>
+                <button class="secondary-action" id="exportTextBtn" type="button">Export text</button>
+                <button class="secondary-action" id="exportPdfBtn" type="button">Print PDF</button>
+              </div>
+            </div>
+            <div id="reportDailySummary" class="report-list"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-privacy">
+          <div class="card">
+            <h2>Privacy</h2>
+            <div class="content-block">
+              <p><strong>What data is stored:</strong> Pain level, medication name, dose, date and time, optional notes, symptoms, body location, trigger, and optional voice recordings saved only locally in your browser.</p>
+              <p><strong>Where it is stored:</strong> In the browser's local storage on the device you use. This is not healthcare-grade encrypted storage. If the browser or device is reset, storage may be lost.</p>
+              <p><strong>Whether anything is transmitted:</strong> By default, this app does not send diary data to a cloud service or third-party analytics provider.</p>
+              <p><strong>How exports work:</strong> You can export a JSON backup or a text report. The export is generated on your device and saved to your download folder or printed to a PDF through the browser.</p>
+              <p><strong>How you can delete data:</strong> Use the “Clear today” action or the full delete option in the app. You can also delete all data by using the main “Delete all data” action in the footer.</p>
+              <p><strong>Microphone and speech permissions:</strong> If you use voice recording or speech-to-text, the browser asks for microphone permission. Permission is required to use those features.</p>
+              <p><strong>Third-party services:</strong> No external analytics or tracking services are required for core operation. If a future cloud feature is added, it must be opt-in and clear to the user.</p>
+              <p><strong>Limitations:</strong> Browser local storage is convenient and useful for personal tracking, but it is not equivalent to healthcare-grade encrypted storage. Keep your device secure and back up exports if you need long-term records.</p>
+              <button class="secondary-action full-width" id="importJsonBtn" type="button">Import JSON backup</button>
+              <input id="importFileInput" type="file" accept="application/json,.json" class="hidden-file-input" />
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-terms">
+          <div class="card">
+            <h2>Terms and conditions</h2>
+            <div class="content-block">
+              <p><strong>Purpose:</strong> Pain Log V2 is a personal diary tool for recording pain levels, medications, notes, and voice entries for personal reference and health-related discussions.</p>
+              <p><strong>User responsibility:</strong> You are responsible for the accuracy and suitability of the information you enter. This application does not replace professional medical advice.</p>
+              <p><strong>Medical disclaimer:</strong> This app is not intended to diagnose, treat, cure, or prevent any disease or medical condition. It does not provide medical advice, diagnosis, or treatment recommendations.</p>
+              <p><strong>No emergency service:</strong> If you are in a medical emergency, contact emergency services or your local medical provider immediately.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer-bar">
+        <button class="danger-button" id="deleteAllBtn" type="button">Delete all data</button>
+      </footer>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+    <script>
+      // Register service worker if available (PWA support)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(()=>{/*sw register failed*/});
+      }
+    </script>
+  </body>
+</html>
